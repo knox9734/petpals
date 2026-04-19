@@ -39,3 +39,11 @@ export const appointmentAPI = {
 export const dashboardAPI = {
     get: () => request('/dashboard/', { token: token() }),
 };
+
+export const staffAPI = {
+    appointments:      ()         => request('/staff/appointments/',        { token: token() }),
+    updateAppointment: (id, body) => request(`/staff/appointments/${id}/`,  { method: 'PUT', body, token: token() }),
+    invoices:          ()         => request('/staff/invoices/',            { token: token() }),
+    createInvoice:     (body)     => request('/staff/invoices/create/',     { method: 'POST', body, token: token() }),
+    updateInvoice:     (id, body) => request(`/staff/invoices/${id}/`,      { method: 'PUT', body, token: token() }),
+};
