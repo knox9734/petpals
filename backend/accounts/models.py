@@ -45,3 +45,21 @@ class Appointment(models.Model):
 
     def __str__(self):
         return f"{self.pet.name} — {self.service} on {self.date}"
+
+
+class Invoice(models.Model):
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Paid',    'Paid'),
+        ('Waived',  'Waived'),
+    ]
+
+    appointment = models.OneToOneField(Appointment, on_delete=models.CASCADE, related_name='invoice')
+    amount      = models.DecimalField(max_digits=8, decimal_places=2)
+    status      = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    notes       = models.TextField(blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"INV-{self.pk:04d} — {self.appointment}"

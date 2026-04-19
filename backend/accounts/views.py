@@ -1,12 +1,14 @@
+from django.conf import settings
 from django.contrib.auth import authenticate
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Pet, Appointment
-from .serializers import RegisterSerializer, UserSerializer, PetSerializer, AppointmentSerializer
+from .models import Pet, Appointment, Invoice
+from .serializers import (RegisterSerializer, UserSerializer, PetSerializer,
+                           AppointmentSerializer, InvoiceSerializer)
 
 
 def get_tokens(user):
@@ -20,9 +22,25 @@ def get_tokens(user):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
+    staff_code = request.data.get('staff_code', '').strip()
+
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
+
+        # Grant staff access if a valid staff code was supplied
+        if staff_code:
+            if staff_code == settings.STAFF_REGISTRATION_CODE:
+                user.is_staff = True
+                user.save(update_fields=['is_staff'])
+            else:
+                # Wrong code — delete the just-created user and reject
+                user.delete()
+                return Response(
+                    {'staff_code': 'Invalid staff registration code.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         return Response({
             'message': 'Account created successfully.',
             'user': UserSerializer(user).data,
@@ -117,7 +135,7 @@ def pet_detail(request, pk):
 @permission_classes([IsAuthenticated])
 def appointments(request):
     if request.method == 'GET':
-        qs = Appointment.objects.filter(user=request.user).select_related('pet')
+        qs = Appointment.objects.filter(user=request.user).select_related('pet', 'user')
         return Response(AppointmentSerializer(qs, many=True).data)
 
     # Validate the pet belongs to this user
@@ -139,17 +157,115 @@ def appointments(request):
 def dashboard(request):
     user = request.user
     pet_qs  = Pet.objects.filter(owner=user)
-    appt_qs = Appointment.objects.filter(user=user).select_related('pet')
+    appt_qs = Appointment.objects.filter(user=user).select_related('pet', 'user')
 
-    total_spent = sum(
-        50 for a in appt_qs if a.status == 'Completed'   # placeholder until billing model added
-    )
+    # Use actual invoice amounts where available, fall back to $50 placeholder
+    total_spent = 0
+    for a in appt_qs:
+        if a.status == 'Completed':
+            try:
+                total_spent += float(a.invoice.amount)
+            except Invoice.DoesNotExist:
+                total_spent += 50
 
     upcoming = appt_qs.filter(status='Upcoming').order_by('date', 'time').first()
 
     return Response({
-        'pets':              PetSerializer(pet_qs, many=True).data,
-        'appointments':      AppointmentSerializer(appt_qs, many=True).data,
-        'total_spent':       total_spent,
-        'upcoming':          AppointmentSerializer(upcoming).data if upcoming else None,
+        'pets':         PetSerializer(pet_qs, many=True).data,
+        'appointments': AppointmentSerializer(appt_qs, many=True).data,
+        'total_spent':  total_spent,
+        'upcoming':     AppointmentSerializer(upcoming).data if upcoming else None,
     })
+
+
+# ── Staff: Appointment Management ─────────────────────────────────────
+
+def _is_staff(request):
+    return request.user.is_staff or request.user.is_superuser
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def staff_appointments(request):
+    """List ALL appointments across all users (staff only)."""
+    if not _is_staff(request):
+        return Response({'error': 'Staff access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+    qs = (Appointment.objects
+          .select_related('pet', 'user')
+          .prefetch_related('invoice')
+          .order_by('status', 'date', 'time'))
+    return Response(AppointmentSerializer(qs, many=True).data)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def staff_appointment_detail(request, pk):
+    """Update status and/or doctor for any appointment (staff only)."""
+    if not _is_staff(request):
+        return Response({'error': 'Staff access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        appt = Appointment.objects.select_related('pet', 'user').get(pk=pk)
+    except Appointment.DoesNotExist:
+        return Response({'error': 'Appointment not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    allowed_fields = {'status', 'doctor', 'notes'}
+    data = {k: v for k, v in request.data.items() if k in allowed_fields}
+
+    serializer = AppointmentSerializer(appt, data=data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ── Staff: Invoices ───────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def staff_invoices(request):
+    """List all invoices (staff only)."""
+    if not _is_staff(request):
+        return Response({'error': 'Staff access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+    qs = Invoice.objects.select_related('appointment__pet', 'appointment__user').order_by('-created_at')
+    return Response(InvoiceSerializer(qs, many=True).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def staff_invoice_create(request):
+    """Create an invoice for an appointment (staff only)."""
+    if not _is_staff(request):
+        return Response({'error': 'Staff access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+    appt_id = request.data.get('appointment')
+    if Invoice.objects.filter(appointment_id=appt_id).exists():
+        return Response({'error': 'Invoice already exists for this appointment.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    serializer = InvoiceSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def staff_invoice_detail(request, pk):
+    """Update an invoice (staff only)."""
+    if not _is_staff(request):
+        return Response({'error': 'Staff access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        invoice = Invoice.objects.get(pk=pk)
+    except Invoice.DoesNotExist:
+        return Response({'error': 'Invoice not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = InvoiceSerializer(invoice, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

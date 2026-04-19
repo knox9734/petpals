@@ -16,4 +16,10 @@ urlpatterns = [
     path('appointments/',       views.appointments,  name='appointments'),
     # Dashboard
     path('dashboard/',          views.dashboard,     name='dashboard'),
+    # Staff
+    path('staff/appointments/',            views.staff_appointments,      name='staff_appointments'),
+    path('staff/appointments/<int:pk>/',   views.staff_appointment_detail, name='staff_appointment_detail'),
+    path('staff/invoices/',                views.staff_invoices,           name='staff_invoices'),
+    path('staff/invoices/create/',         views.staff_invoice_create,     name='staff_invoice_create'),
+    path('staff/invoices/<int:pk>/',       views.staff_invoice_detail,     name='staff_invoice_detail'),
 ]
