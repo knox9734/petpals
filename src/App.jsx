@@ -30,7 +30,7 @@ const App = () => {
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Container sx={{ mt: 4 }}><Login /></Container>} />
         <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Container sx={{ mt: 4 }}><Register /></Container>} />
         <Route path="/dashboard" element={!user ? <Navigate to="/login" /> : <Container sx={{ mt: 4 }}><Dashboard /></Container>} />
-        <Route path="/book" element={<Container sx={{ mt: 4 }}><BookAppointment /></Container>} />
+        <Route path="/book" element={!user ? <Navigate to="/login" /> : <Container sx={{ mt: 4 }}><BookAppointment /></Container>} />
       </Routes>
     </>
   );
