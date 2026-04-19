@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(gh pr create --title 'Modernize UI across all pages with consistent design system' --body ' *)",
+      "Bash(where gh *)",
+      "Bash(winget list *)",
+      "Read(//d/msc 1st sem/sep/project/petpals/**)",
+      "Bash(mkdir -p \"D:\\\\msc 1st sem\\\\sep\\\\project\\\\petpals\\\\backend\")",
+      "Bash(python -m venv venv)",
+      "Bash(venv/Scripts/pip install *)",
+      "Bash(venv/Scripts/django-admin startproject *)",
+      "Bash(venv/Scripts/python manage.py startapp accounts)",
+      "Bash(venv/Scripts/python manage.py migrate)",
+      "Bash(venv/Scripts/python manage.py check)",
+      "Bash(venv/Scripts/python manage.py runserver 8000)",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/register/ -H \"Content-Type: application/json\" -d \"{\\\\\"first_name\\\\\":\\\\\"John\\\\\",\\\\\"last_name\\\\\":\\\\\"Doe\\\\\",\\\\\"email\\\\\":\\\\\"john@test.com\\\\\",\\\\\"password\\\\\":\\\\\"Test1234!\\\\\",\\\\\"confirm_password\\\\\":\\\\\"Test1234!\\\\\"}\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/login/ -H \"Content-Type: application/json\" -d \"{\\\\\"email\\\\\":\\\\\"john@test.com\\\\\",\\\\\"password\\\\\":\\\\\"Test1234!\\\\\"}\")",
+      "Bash(curl -s http://localhost:8000/api/auth/login/ -X POST -H \"Content-Type: application/json\" -d \"{\\\\\"email\\\\\":\\\\\"john@test.com\\\\\",\\\\\"password\\\\\":\\\\\"Test1234!\\\\\"}\")",
+      "Bash(python -m json.tool)",
+      "Bash(venv/Scripts/python manage.py makemigrations)"
+    ]
+  }
+}

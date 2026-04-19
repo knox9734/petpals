@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
     Box, Typography, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Button,
-    Chip, Avatar, Container, LinearProgress,
+    Chip, Avatar, Container, LinearProgress, CircularProgress,
+    IconButton,
 } from "@mui/material";
 import PetsIcon from "@mui/icons-material/Pets";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
@@ -16,41 +17,25 @@ import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import VaccinesOutlinedIcon from "@mui/icons-material/VaccinesOutlined";
 import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
 import ContentCutOutlinedIcon from "@mui/icons-material/ContentCutOutlined";
+import AddIcon from "@mui/icons-material/Add";
 import { useNavigate } from "react-router-dom";
+import { dashboardAPI } from "../api";
+import { AuthContext } from "../Context/AuthContext";
+import AddPetModal from "../components/AddPetModal";
 
-const appointmentsData = [
-    { id: 1, date: "2026-05-10", time: "11:30 AM", petName: "Buddy", service: "General Checkup", doctor: "Dr. Smith", status: "Upcoming" },
-    { id: 2, date: "2026-02-20", time: "10:00 AM", petName: "Buddy", service: "Vaccination", doctor: "Dr. Smith", status: "Completed" },
-    { id: 3, date: "2026-01-15", time: "02:00 PM", petName: "Milo", service: "Dental Care", doctor: "Dr. Brown", status: "Completed" },
-    { id: 4, date: "2025-11-05", time: "09:30 AM", petName: "Milo", service: "Grooming", doctor: "Dr. Lee", status: "Completed" },
-    { id: 5, date: "2025-09-18", time: "03:00 PM", petName: "Buddy", service: "Emergency Care", doctor: "Dr. Smith", status: "Completed" },
-    { id: 6, date: "2025-07-22", time: "01:00 PM", petName: "Milo", service: "Vaccination", doctor: "Dr. Brown", status: "Completed" },
+const PET_COLORS = [
+    "linear-gradient(135deg, #1565c0, #0097a7)",
+    "linear-gradient(135deg, #4527a0, #7b1fa2)",
+    "linear-gradient(135deg, #b71c1c, #e91e63)",
+    "linear-gradient(135deg, #1b5e20, #0097a7)",
 ];
 
-const billingData = [
-    { id: 1, date: "2026-05-10", invoiceNo: "INV003", service: "General Checkup", amount: 40, status: "Pending" },
-    { id: 2, date: "2026-02-20", invoiceNo: "INV002", service: "Vaccination", amount: 50, status: "Paid" },
-    { id: 3, date: "2026-01-15", invoiceNo: "INV001", service: "Dental Care", amount: 75, status: "Paid" },
-    { id: 4, date: "2025-11-05", invoiceNo: "INV000", service: "Grooming", amount: 35, status: "Paid" },
-    { id: 5, date: "2025-09-18", invoiceNo: "INV-E01", service: "Emergency Care", amount: 120, status: "Paid" },
-];
-
-const petsData = [
-    { name: "Buddy", species: "Dog", breed: "Golden Retriever", age: "3 yrs", weight: "28 kg", lastVisit: "2026-02-20", health: 92, color: "linear-gradient(135deg, #1565c0, #0097a7)", avatar: "🐕" },
-    { name: "Milo",  species: "Cat", breed: "British Shorthair", age: "5 yrs", weight: "5.2 kg", lastVisit: "2026-01-15", health: 87, color: "linear-gradient(135deg, #4527a0, #7b1fa2)", avatar: "🐈" },
-];
+const SPECIES_AVATAR = { Dog: "🐕", Cat: "🐈", Bird: "🐦", Rabbit: "🐇", Fish: "🐟", Other: "🐾" };
 
 const reminders = [
-    { icon: <VaccinesOutlinedIcon sx={{ fontSize: 18 }} />, text: "Buddy's annual vaccination due", date: "In 18 days", color: "#fff3e0", iconColor: "#f57c00" },
-    { icon: <ContentCutOutlinedIcon sx={{ fontSize: 18 }} />, text: "Milo's grooming session", date: "In 30 days", color: "#f3e5f5", iconColor: "#7b1fa2" },
-    { icon: <MonitorHeartOutlinedIcon sx={{ fontSize: 18 }} />, text: "Buddy's heartworm test", date: "In 45 days", color: "#e8f5e9", iconColor: "#2e7d32" },
-    { icon: <ScienceOutlinedIcon sx={{ fontSize: 18 }} />, text: "Milo's blood panel review", date: "In 60 days", color: "#e3f2fd", iconColor: "#1565c0" },
-];
-
-const prescriptions = [
-    { pet: "Buddy", med: "Heartgard Plus", dose: "1 chew/month", refills: 2, expires: "2026-08-01" },
-    { pet: "Milo",  med: "Felimazole 2.5mg", dose: "Twice daily", refills: 1, expires: "2026-06-15" },
-    { pet: "Buddy", med: "Apoquel 16mg", dose: "Once daily", refills: 0, expires: "2026-05-30" },
+    { icon: <VaccinesOutlinedIcon sx={{ fontSize: 18 }} />, text: "Annual vaccination due soon", date: "In 18 days", color: "#fff3e0", iconColor: "#f57c00" },
+    { icon: <ContentCutOutlinedIcon sx={{ fontSize: 18 }} />, text: "Grooming session scheduled", date: "In 30 days", color: "#f3e5f5", iconColor: "#7b1fa2" },
+    { icon: <MonitorHeartOutlinedIcon sx={{ fontSize: 18 }} />, text: "Heartworm test reminder", date: "In 45 days", color: "#e8f5e9", iconColor: "#2e7d32" },
 ];
 
 const statusChip = (status) => {
@@ -103,19 +88,66 @@ const ViewAll = () => (
 
 const Dashboard = () => {
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
+
+    const [pets, setPets]               = useState([]);
     const [appointments, setAppointments] = useState([]);
-    const [billing, setBilling] = useState([]);
+    const [totalSpent, setTotalSpent]   = useState(0);
+    const [upcomingAppt, setUpcoming]   = useState(null);
+    const [loading, setLoading]         = useState(true);
+    const [showAddPet, setShowAddPet]   = useState(false);
+    const [isFirstPet, setIsFirstPet]   = useState(false);
 
-    useEffect(() => {
-        setAppointments(appointmentsData);
-        setBilling(billingData);
-    }, []);
+    const loadDashboard = async () => {
+        try {
+            const data = await dashboardAPI.get();
+            setPets(data.pets);
+            setAppointments(data.appointments);
+            setTotalSpent(data.total_spent);
+            setUpcoming(data.upcoming);
+            if (data.pets.length === 0) {
+                setIsFirstPet(true);
+                setShowAddPet(true);
+            }
+        } catch (err) {
+            console.error("Dashboard load failed", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    const upcoming = appointments.find(a => a.status === "Upcoming");
-    const totalSpent = billing.filter(b => b.status === "Paid").reduce((s, b) => s + b.amount, 0);
+    useEffect(() => { loadDashboard(); }, []);
+
+    const handlePetSaved = async () => {
+        setShowAddPet(false);
+        setIsFirstPet(false);
+        await loadDashboard();
+    };
+
+    const firstName = user?.first_name || user?.email?.split("@")[0] || "there";
+    const initials  = firstName.charAt(0).toUpperCase();
+
+    const billingRows = appointments
+        .filter(a => a.status === "Completed")
+        .map((a, i) => ({ id: a.id, date: a.date, service: a.service, invoiceNo: `INV-${String(a.id).padStart(3, "0")}`, amount: 50, status: "Paid" }));
+
+    if (loading) {
+        return (
+            <Box sx={{ minHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CircularProgress size={48} sx={{ color: "#1565c0" }} />
+            </Box>
+        );
+    }
 
     return (
         <Box sx={{ minHeight: "100vh", backgroundColor: "#f5f7fb" }}>
+
+            <AddPetModal
+                open={showAddPet}
+                onClose={() => setShowAddPet(false)}
+                onSaved={handlePetSaved}
+                isFirstPet={isFirstPet}
+            />
 
             {/* ── HEADER BANNER ── */}
             <Box sx={{ background: "linear-gradient(135deg, #0d1b2a 0%, #1565c0 60%, #0097a7 100%)", pt: 5, pb: 9, px: { xs: 3, md: 6 }, position: "relative", overflow: "hidden" }}>
@@ -125,10 +157,12 @@ const Dashboard = () => {
                 <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                            <Avatar sx={{ width: 56, height: 56, background: "linear-gradient(135deg, #64d9fb, #1565c0)", fontSize: "1.4rem", fontWeight: 800 }}>J</Avatar>
+                            <Avatar sx={{ width: 56, height: 56, background: "linear-gradient(135deg, #64d9fb, #1565c0)", fontSize: "1.4rem", fontWeight: 800 }}>{initials}</Avatar>
                             <Box>
                                 <Typography sx={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem" }}>Welcome back</Typography>
-                                <Typography sx={{ color: "white", fontWeight: 800, fontSize: "1.4rem" }}>John Doe</Typography>
+                                <Typography sx={{ color: "white", fontWeight: 800, fontSize: "1.4rem" }}>
+                                    {user?.first_name} {user?.last_name}
+                                </Typography>
                             </Box>
                         </Box>
                         <Button onClick={() => navigate("/book")} variant="contained" startIcon={<AddCircleOutlineIcon />}
@@ -139,9 +173,12 @@ const Dashboard = () => {
 
                     <Box sx={{ display: "flex", gap: 2, mt: 4, flexWrap: "wrap" }}>
                         <StatCard icon={<CalendarTodayOutlinedIcon sx={{ color: "white", fontSize: 22 }} />} label="Total Appointments" value={appointments.length} gradient="linear-gradient(135deg, #1565c0, #0097a7)" />
-                        <StatCard icon={<PetsIcon sx={{ color: "white", fontSize: 22 }} />} label="Registered Pets" value={petsData.length} gradient="linear-gradient(135deg, #4527a0, #7b1fa2)" />
+                        <StatCard icon={<PetsIcon sx={{ color: "white", fontSize: 22 }} />} label="Registered Pets" value={pets.length} gradient="linear-gradient(135deg, #4527a0, #7b1fa2)" />
                         <StatCard icon={<ReceiptOutlinedIcon sx={{ color: "white", fontSize: 22 }} />} label="Total Spent" value={`$${totalSpent}`} gradient="linear-gradient(135deg, #1b5e20, #0097a7)" />
-                        <StatCard icon={<MedicalServicesOutlinedIcon sx={{ color: "white", fontSize: 22 }} />} label="Next Appointment" value={upcoming ? upcoming.date : "—"} sub={upcoming ? `${upcoming.time} · ${upcoming.petName}` : "None scheduled"} gradient="linear-gradient(135deg, #b71c1c, #e91e63)" />
+                        <StatCard icon={<MedicalServicesOutlinedIcon sx={{ color: "white", fontSize: 22 }} />} label="Next Appointment"
+                            value={upcomingAppt ? upcomingAppt.date : "—"}
+                            sub={upcomingAppt ? `${upcomingAppt.time} · ${upcomingAppt.pet_name}` : "None scheduled"}
+                            gradient="linear-gradient(135deg, #b71c1c, #e91e63)" />
                     </Box>
                 </Container>
             </Box>
@@ -149,7 +186,7 @@ const Dashboard = () => {
             <Container maxWidth="lg" sx={{ mt: -4, pb: 8 }}>
 
                 {/* Upcoming banner */}
-                {upcoming && (
+                {upcomingAppt && (
                     <Card sx={{ mb: 3, border: "1px solid #e3f2fd" }}>
                         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
                             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -158,10 +195,10 @@ const Dashboard = () => {
                                 </Box>
                                 <Box>
                                     <Typography sx={{ fontWeight: 700, color: "#0d1b2a", fontSize: "0.95rem" }}>
-                                        Upcoming: {upcoming.service} for {upcoming.petName}
+                                        Upcoming: {upcomingAppt.service} for {upcomingAppt.pet_name}
                                     </Typography>
                                     <Typography sx={{ color: "text.secondary", fontSize: "0.85rem" }}>
-                                        {upcoming.date} at {upcoming.time} · {upcoming.doctor}
+                                        {upcomingAppt.date} at {upcomingAppt.time} · {upcomingAppt.doctor}
                                     </Typography>
                                 </Box>
                             </Box>
@@ -177,39 +214,68 @@ const Dashboard = () => {
                 )}
 
                 {/* ── ROW 1: Pet Profiles ── */}
-                <Box sx={{ display: "flex", gap: 3, mb: 3, flexWrap: { xs: "wrap", sm: "nowrap" } }}>
-                    {petsData.map((pet) => (
-                        <Card key={pet.name} sx={{ flex: 1 }}>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2.5 }}>
-                                <Box sx={{ width: 52, height: 52, borderRadius: "16px", background: pet.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.6rem" }}>
-                                    {pet.avatar}
-                                </Box>
-                                <Box>
-                                    <Typography fontWeight={800} fontSize="1.05rem" color="#0d1b2a">{pet.name}</Typography>
-                                    <Typography fontSize="0.82rem" color="text.secondary">{pet.breed} · {pet.species}</Typography>
-                                </Box>
+                <Card sx={{ mb: 3 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.5 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                            <Box sx={{ width: 36, height: 36, borderRadius: "10px", background: "linear-gradient(135deg, #1565c0, #0097a7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <PetsIcon sx={{ color: "white", fontSize: 18 }} />
                             </Box>
+                            <Typography fontWeight={800} fontSize="1rem" color="#0d1b2a">My Pets</Typography>
+                        </Box>
+                        <Button onClick={() => { setIsFirstPet(false); setShowAddPet(true); }}
+                            variant="contained" startIcon={<AddIcon />} size="small"
+                            sx={{ borderRadius: "10px", fontWeight: 700, textTransform: "none", fontSize: "0.83rem", background: "linear-gradient(135deg, #1565c0, #0097a7)", boxShadow: "0 4px 12px rgba(21,101,192,0.25)", "&:hover": { boxShadow: "0 6px 18px rgba(21,101,192,0.35)", transform: "translateY(-1px)" }, transition: "all 0.2s" }}>
+                            Add Pet
+                        </Button>
+                    </Box>
 
-                            <Box sx={{ display: "flex", gap: 2, mb: 2.5 }}>
-                                {[["Age", pet.age], ["Weight", pet.weight], ["Last visit", pet.lastVisit]].map(([k, v]) => (
-                                    <Box key={k} sx={{ flex: 1, textAlign: "center", p: 1.2, borderRadius: "10px", backgroundColor: "#f8fafc" }}>
-                                        <Typography fontSize="0.7rem" color="text.secondary" fontWeight={600}>{k}</Typography>
-                                        <Typography fontSize="0.82rem" fontWeight={700} color="#0d1b2a" mt={0.3}>{v}</Typography>
+                    {pets.length === 0 ? (
+                        <Box sx={{ textAlign: "center", py: 5, color: "text.secondary" }}>
+                            <PetsIcon sx={{ fontSize: 48, opacity: 0.2, mb: 1 }} />
+                            <Typography fontSize="0.9rem">No pets registered yet.</Typography>
+                        </Box>
+                    ) : (
+                        <Box sx={{ display: "flex", gap: 3, flexWrap: { xs: "wrap", sm: "nowrap" } }}>
+                            {pets.map((pet, idx) => {
+                                const color  = PET_COLORS[idx % PET_COLORS.length];
+                                const avatar = SPECIES_AVATAR[pet.species] || "🐾";
+                                const lastAppt = appointments.filter(a => a.pet === pet.id).sort((a, b) => b.date.localeCompare(a.date))[0];
+                                return (
+                                    <Box key={pet.id} sx={{ flex: 1, minWidth: { xs: "100%", sm: 0 }, p: 2.5, borderRadius: "16px", border: "1px solid #f0f4f8", backgroundColor: "#fafbfd" }}>
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2.5 }}>
+                                            <Box sx={{ width: 52, height: 52, borderRadius: "16px", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.6rem" }}>
+                                                {avatar}
+                                            </Box>
+                                            <Box>
+                                                <Typography fontWeight={800} fontSize="1.05rem" color="#0d1b2a">{pet.name}</Typography>
+                                                <Typography fontSize="0.82rem" color="text.secondary">
+                                                    {pet.breed ? `${pet.breed} · ` : ""}{pet.species}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+
+                                        <Box sx={{ display: "flex", gap: 2, mb: lastAppt ? 2 : 0 }}>
+                                            {[["Age", `${pet.age} yr${pet.age !== 1 ? "s" : ""}`], ["Weight", `${pet.weight} kg`]].map(([k, v]) => (
+                                                <Box key={k} sx={{ flex: 1, textAlign: "center", p: 1.2, borderRadius: "10px", backgroundColor: "#f0f4f8" }}>
+                                                    <Typography fontSize="0.7rem" color="text.secondary" fontWeight={600}>{k}</Typography>
+                                                    <Typography fontSize="0.82rem" fontWeight={700} color="#0d1b2a" mt={0.3}>{v}</Typography>
+                                                </Box>
+                                            ))}
+                                        </Box>
+
+                                        {lastAppt && (
+                                            <Box sx={{ mt: 2, pt: 2, borderTop: "1px dashed #e0e7ef" }}>
+                                                <Typography fontSize="0.73rem" color="text.secondary">
+                                                    Last visit: <strong>{lastAppt.date}</strong> · {lastAppt.service}
+                                                </Typography>
+                                            </Box>
+                                        )}
                                     </Box>
-                                ))}
-                            </Box>
-
-                            <Box>
-                                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.8 }}>
-                                    <Typography fontSize="0.78rem" color="text.secondary" fontWeight={600}>Health score</Typography>
-                                    <Typography fontSize="0.78rem" fontWeight={800} color={pet.health >= 90 ? "#2e7d32" : "#f57f17"}>{pet.health}%</Typography>
-                                </Box>
-                                <LinearProgress variant="determinate" value={pet.health}
-                                    sx={{ height: 8, borderRadius: 4, backgroundColor: "#f0f4f8", "& .MuiLinearProgress-bar": { borderRadius: 4, background: pet.color } }} />
-                            </Box>
-                        </Card>
-                    ))}
-                </Box>
+                                );
+                            })}
+                        </Box>
+                    )}
+                </Card>
 
                 {/* ── ROW 2: Appointments + Right column ── */}
                 <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, gap: 3, mb: 3 }}>
@@ -217,33 +283,43 @@ const Dashboard = () => {
                     {/* Appointment History */}
                     <Card sx={{ flex: 2 }}>
                         <CardHeader icon={<MedicalServicesOutlinedIcon />} title="Appointment History" gradient="linear-gradient(135deg, #1565c0, #0097a7)" action={<ViewAll />} />
-                        <TableContainer sx={{ borderRadius: "12px", border: "1px solid #f0f4f8" }}>
-                            <Table>
-                                <TableHead>
-                                    <TableRow sx={{ backgroundColor: "#f8fafc" }}>
-                                        {["Date", "Pet", "Service", "Doctor", "Status"].map(h => (
-                                            <TableCell key={h} sx={{ fontWeight: 700, color: "#6b7c93", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", border: "none", py: 1.5 }}>{h}</TableCell>
-                                        ))}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {appointments.map((appt) => (
-                                        <TableRow key={appt.id} sx={{ "&:last-child td": { border: "none" }, "&:hover": { backgroundColor: "#f8fafc" }, transition: "background 0.15s" }}>
-                                            <TableCell sx={{ fontSize: "0.83rem", color: "#0d1b2a", fontWeight: 600, py: 1.8 }}>{appt.date}</TableCell>
-                                            <TableCell>
-                                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                                    <Avatar sx={{ width: 26, height: 26, fontSize: "0.72rem", backgroundColor: appt.petName === "Buddy" ? "#e3f2fd" : "#f3e5f5", color: appt.petName === "Buddy" ? "#1565c0" : "#7b1fa2", fontWeight: 700 }}>{appt.petName[0]}</Avatar>
-                                                    <Typography sx={{ fontSize: "0.83rem", fontWeight: 600, color: "#0d1b2a" }}>{appt.petName}</Typography>
-                                                </Box>
-                                            </TableCell>
-                                            <TableCell sx={{ fontSize: "0.83rem", color: "#444" }}>{appt.service}</TableCell>
-                                            <TableCell sx={{ fontSize: "0.83rem", color: "#444" }}>{appt.doctor}</TableCell>
-                                            <TableCell>{statusChip(appt.status)}</TableCell>
+                        {appointments.length === 0 ? (
+                            <Box sx={{ textAlign: "center", py: 5, color: "text.secondary" }}>
+                                <CalendarTodayOutlinedIcon sx={{ fontSize: 40, opacity: 0.2, mb: 1 }} />
+                                <Typography fontSize="0.9rem">No appointments yet.</Typography>
+                                <Button onClick={() => navigate("/book")} size="small" sx={{ mt: 1.5, textTransform: "none", fontWeight: 600, color: "#1565c0" }}>
+                                    Book your first appointment →
+                                </Button>
+                            </Box>
+                        ) : (
+                            <TableContainer sx={{ borderRadius: "12px", border: "1px solid #f0f4f8" }}>
+                                <Table>
+                                    <TableHead>
+                                        <TableRow sx={{ backgroundColor: "#f8fafc" }}>
+                                            {["Date", "Pet", "Service", "Doctor", "Status"].map(h => (
+                                                <TableCell key={h} sx={{ fontWeight: 700, color: "#6b7c93", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", border: "none", py: 1.5 }}>{h}</TableCell>
+                                            ))}
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
+                                    </TableHead>
+                                    <TableBody>
+                                        {appointments.map((appt) => (
+                                            <TableRow key={appt.id} sx={{ "&:last-child td": { border: "none" }, "&:hover": { backgroundColor: "#f8fafc" }, transition: "background 0.15s" }}>
+                                                <TableCell sx={{ fontSize: "0.83rem", color: "#0d1b2a", fontWeight: 600, py: 1.8 }}>{appt.date}</TableCell>
+                                                <TableCell>
+                                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                                        <Avatar sx={{ width: 26, height: 26, fontSize: "0.72rem", backgroundColor: "#e3f2fd", color: "#1565c0", fontWeight: 700 }}>{appt.pet_name?.[0]}</Avatar>
+                                                        <Typography sx={{ fontSize: "0.83rem", fontWeight: 600, color: "#0d1b2a" }}>{appt.pet_name}</Typography>
+                                                    </Box>
+                                                </TableCell>
+                                                <TableCell sx={{ fontSize: "0.83rem", color: "#444" }}>{appt.service}</TableCell>
+                                                <TableCell sx={{ fontSize: "0.83rem", color: "#444" }}>{appt.doctor || "TBD"}</TableCell>
+                                                <TableCell>{statusChip(appt.status)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        )}
                     </Card>
 
                     {/* Right column */}
@@ -273,24 +349,22 @@ const Dashboard = () => {
                                     sx={{ py: 1.3, borderRadius: "12px", fontWeight: 700, textTransform: "none", fontSize: "0.88rem", background: "linear-gradient(135deg, #1565c0, #0097a7)", boxShadow: "0 4px 16px rgba(21,101,192,0.3)", "&:hover": { boxShadow: "0 8px 24px rgba(21,101,192,0.4)", transform: "translateY(-1px)" }, transition: "all 0.2s" }}>
                                     Book Appointment
                                 </Button>
+                                <Button fullWidth variant="outlined" onClick={() => { setIsFirstPet(false); setShowAddPet(true); }} startIcon={<AddIcon />}
+                                    sx={{ py: 1.3, borderRadius: "12px", fontWeight: 700, textTransform: "none", fontSize: "0.88rem", color: "#1565c0", borderColor: "#e3f2fd", backgroundColor: "#f5f9ff", "&:hover": { borderColor: "#90caf9", backgroundColor: "#e3f2fd" } }}>
+                                    Add a Pet
+                                </Button>
                                 <Button fullWidth variant="outlined" startIcon={<LocalHospitalOutlinedIcon />}
                                     sx={{ py: 1.3, borderRadius: "12px", fontWeight: 700, textTransform: "none", fontSize: "0.88rem", color: "#b71c1c", borderColor: "#fde8e8", backgroundColor: "#fff8f8", "&:hover": { borderColor: "#ef9a9a", backgroundColor: "#fde8e8" } }}>
                                     Emergency Contact
-                                </Button>
-                                <Button fullWidth variant="outlined" startIcon={<ReceiptOutlinedIcon />}
-                                    sx={{ py: 1.3, borderRadius: "12px", fontWeight: 700, textTransform: "none", fontSize: "0.88rem", color: "#1b5e20", borderColor: "#e8f5e9", backgroundColor: "#f8fff8", "&:hover": { borderColor: "#a5d6a7", backgroundColor: "#e8f5e9" } }}>
-                                    Download Reports
                                 </Button>
                             </Box>
                         </Card>
                     </Box>
                 </Box>
 
-                {/* ── ROW 3: Billing + Prescriptions ── */}
-                <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, gap: 3 }}>
-
-                    {/* Billing */}
-                    <Card sx={{ flex: 1 }}>
+                {/* ── ROW 3: Billing ── */}
+                {billingRows.length > 0 && (
+                    <Card>
                         <CardHeader icon={<ReceiptOutlinedIcon />} title="Billing History" gradient="linear-gradient(135deg, #1b5e20, #0097a7)" action={<ViewAll />} />
                         <TableContainer sx={{ borderRadius: "12px", border: "1px solid #f0f4f8" }}>
                             <Table>
@@ -302,7 +376,7 @@ const Dashboard = () => {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {billing.map((bill) => (
+                                    {billingRows.map((bill) => (
                                         <TableRow key={bill.id} sx={{ "&:last-child td": { border: "none" }, "&:hover": { backgroundColor: "#f8fafc" }, transition: "background 0.15s" }}>
                                             <TableCell sx={{ fontSize: "0.82rem", color: "#0d1b2a", py: 1.8 }}>{bill.date}</TableCell>
                                             <TableCell sx={{ fontSize: "0.82rem", color: "#444", fontWeight: 600 }}>{bill.service}</TableCell>
@@ -319,31 +393,7 @@ const Dashboard = () => {
                             <Typography sx={{ fontWeight: 800, color: "#0d1b2a" }}>${totalSpent}</Typography>
                         </Box>
                     </Card>
-
-                    {/* Prescriptions */}
-                    <Card sx={{ flex: 1 }}>
-                        <CardHeader icon={<ScienceOutlinedIcon />} title="Active Prescriptions" gradient="linear-gradient(135deg, #4527a0, #0097a7)" />
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                            {prescriptions.map((p, i) => (
-                                <Box key={i} sx={{ p: 2, borderRadius: "14px", border: "1px solid #f0f4f8", backgroundColor: "#fafbfd", transition: "all 0.2s", "&:hover": { borderColor: "#dde3ed", backgroundColor: "#f5f7fb" } }}>
-                                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                                        <Box>
-                                            <Typography sx={{ fontWeight: 700, fontSize: "0.9rem", color: "#0d1b2a" }}>{p.med}</Typography>
-                                            <Typography sx={{ fontSize: "0.78rem", color: "text.secondary" }}>{p.pet} · {p.dose}</Typography>
-                                        </Box>
-                                        <Chip label={p.refills > 0 ? `${p.refills} refill${p.refills > 1 ? "s" : ""}` : "No refills"}
-                                            size="small"
-                                            sx={{ fontSize: "0.7rem", height: 22, borderRadius: "8px", backgroundColor: p.refills > 0 ? "#e3f2fd" : "#fde8e8", color: p.refills > 0 ? "#1565c0" : "#c62828", fontWeight: 700 }} />
-                                    </Box>
-                                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <Typography sx={{ fontSize: "0.73rem", color: "text.secondary" }}>Expires: {p.expires}</Typography>
-                                        <Typography sx={{ fontSize: "0.73rem", color: "#1565c0", fontWeight: 600, cursor: "pointer" }}>Renew →</Typography>
-                                    </Box>
-                                </Box>
-                            ))}
-                        </Box>
-                    </Card>
-                </Box>
+                )}
             </Container>
         </Box>
     );

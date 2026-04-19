@@ -21,11 +21,26 @@ const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        login(email);
-        navigate("/book");
+        setError("");
+        setSubmitting(true);
+        try {
+            await login({ email, password });
+            navigate("/dashboard");
+        } catch (err) {
+            const msg =
+                err?.error ||
+                err?.detail ||
+                err?.non_field_errors?.[0] ||
+                "Invalid email or password.";
+            setError(msg);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -135,6 +150,12 @@ const Login = () => {
                         Sign in to your account to continue
                     </Typography>
 
+                    {error && (
+                        <Box sx={{ mb: 2, p: 1.5, borderRadius: "10px", backgroundColor: "#fde8e8", border: "1px solid #f5c6c6" }}>
+                            <Typography sx={{ color: "#c62828", fontSize: "0.85rem", fontWeight: 500 }}>{error}</Typography>
+                        </Box>
+                    )}
+
                     <Box component="form" onSubmit={handleSubmit}>
                         {/* Email field */}
                         <Typography sx={{ fontWeight: 600, fontSize: "0.85rem", color: "#0d1b2a", mb: 0.8 }}>
@@ -202,6 +223,7 @@ const Login = () => {
                             variant="contained"
                             type="submit"
                             size="large"
+                            disabled={submitting}
                             sx={{
                                 mt: 4,
                                 py: 1.6,
@@ -216,10 +238,11 @@ const Login = () => {
                                     boxShadow: "0 12px 32px rgba(21,101,192,0.45)",
                                     transform: "translateY(-1px)",
                                 },
+                                "&.Mui-disabled": { opacity: 0.7 },
                                 transition: "all 0.25s ease",
                             }}
                         >
-                            Sign in
+                            {submitting ? "Signing in…" : "Sign in"}
                         </Button>
 
                         {/* Divider */}

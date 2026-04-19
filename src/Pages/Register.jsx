@@ -34,15 +34,32 @@ const Register = () => {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setError("");
         if (password !== confirmPassword) {
-            alert("Passwords do not match!");
+            setError("Passwords do not match.");
             return;
         }
-        register({ fname, lname, email, password });
-        navigate("/login");
+        setSubmitting(true);
+        try {
+            await register({ fname, lname, email, password, confirm_password: confirmPassword });
+            navigate("/dashboard");
+        } catch (err) {
+            // err is the parsed JSON error body from Django
+            const msg =
+                err?.email?.[0] ||
+                err?.password?.[0] ||
+                err?.non_field_errors?.[0] ||
+                err?.detail ||
+                "Something went wrong. Please try again.";
+            setError(msg);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -142,6 +159,12 @@ const Register = () => {
                     <Typography sx={{ color: "text.secondary", mb: 3.5, fontSize: "0.95rem" }}>
                         Join us today — it's free and takes less than a minute
                     </Typography>
+
+                    {error && (
+                        <Box sx={{ mb: 2, p: 1.5, borderRadius: "10px", backgroundColor: "#fde8e8", border: "1px solid #f5c6c6" }}>
+                            <Typography sx={{ color: "#c62828", fontSize: "0.85rem", fontWeight: 500 }}>{error}</Typography>
+                        </Box>
+                    )}
 
                     <Box component="form" onSubmit={handleSubmit}>
                         {/* Name row */}
@@ -259,6 +282,7 @@ const Register = () => {
                             variant="contained"
                             type="submit"
                             size="large"
+                            disabled={submitting}
                             sx={{
                                 mt: 4,
                                 py: 1.6,
@@ -273,10 +297,11 @@ const Register = () => {
                                     boxShadow: "0 12px 32px rgba(27,94,32,0.45)",
                                     transform: "translateY(-1px)",
                                 },
+                                "&.Mui-disabled": { opacity: 0.7 },
                                 transition: "all 0.25s ease",
                             }}
                         >
-                            Create account
+                            {submitting ? "Creating account…" : "Create account"}
                         </Button>
 
                         {/* Divider */}
