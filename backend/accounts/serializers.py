@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import Pet, Appointment
+from .models import Pet, Appointment, Invoice
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -34,22 +34,44 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'first_name', 'last_name', 'email')
+        fields = ('id', 'first_name', 'last_name', 'email', 'is_staff')
 
 
 class PetSerializer(serializers.ModelSerializer):
+    owner_email = serializers.CharField(source='owner.email', read_only=True)
+    owner_name  = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Pet
-        fields = ('id', 'name', 'species', 'breed', 'age', 'weight', 'created_at')
-        read_only_fields = ('id', 'created_at')
+        fields = ('id', 'name', 'species', 'breed', 'age', 'weight', 'created_at',
+                  'owner_email', 'owner_name')
+        read_only_fields = ('id', 'created_at', 'owner_email', 'owner_name')
+
+    def get_owner_name(self, obj):
+        return f"{obj.owner.first_name} {obj.owner.last_name}".strip() or obj.owner.email
+
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Invoice
+        fields = ('id', 'appointment', 'amount', 'status', 'notes', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    pet_name    = serializers.CharField(source='pet.name', read_only=True)
+    pet_name    = serializers.CharField(source='pet.name',    read_only=True)
     pet_species = serializers.CharField(source='pet.species', read_only=True)
+    owner_email = serializers.CharField(source='user.email',  read_only=True)
+    owner_name  = serializers.SerializerMethodField(read_only=True)
+    invoice     = InvoiceSerializer(read_only=True)
 
     class Meta:
         model = Appointment
-        fields = ('id', 'pet', 'pet_name', 'pet_species', 'service', 'date',
-                  'time', 'doctor', 'status', 'notes', 'created_at')
-        read_only_fields = ('id', 'created_at', 'pet_name', 'pet_species')
+        fields = ('id', 'pet', 'pet_name', 'pet_species', 'owner_email', 'owner_name',
+                  'service', 'date', 'time', 'doctor', 'status', 'notes', 'created_at',
+                  'invoice')
+        read_only_fields = ('id', 'created_at', 'pet_name', 'pet_species',
+                            'owner_email', 'owner_name', 'invoice')
+
+    def get_owner_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.email
