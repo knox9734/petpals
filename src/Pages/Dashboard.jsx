@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Box, Typography, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Button,
@@ -20,7 +20,7 @@ import ContentCutOutlinedIcon from "@mui/icons-material/ContentCutOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import { useNavigate } from "react-router-dom";
 import { dashboardAPI } from "../api";
-import { AuthContext } from "../Context/AuthContext";
+import { useAuth } from "../Context/AuthContext";
 import AddPetModal from "../components/AddPetModal";
 
 const PET_COLORS = [
@@ -88,7 +88,7 @@ const ViewAll = () => (
 
 const Dashboard = () => {
     const navigate = useNavigate();
-    const { user } = useContext(AuthContext);
+    const { user } = useAuth();
 
     const [pets, setPets]               = useState([]);
     const [appointments, setAppointments] = useState([]);
