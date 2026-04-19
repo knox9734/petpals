@@ -32,14 +32,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Returns user object on success, throws on failure
-    const register = async ({ fname, lname, email, password, confirm_password }) => {
-        const data = await authAPI.register({
-            first_name:       fname,
-            last_name:        lname,
-            email,
-            password,
-            confirm_password,
-        });
+    const register = async ({ fname, lname, email, password, confirm_password, staff_code }) => {
+        const body = { first_name: fname, last_name: lname, email, password, confirm_password };
+        if (staff_code) body.staff_code = staff_code;
+        const data = await authAPI.register(body);
         saveSession(data.user, data.tokens);
         return data.user;
     };

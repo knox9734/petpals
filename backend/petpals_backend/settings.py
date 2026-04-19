@@ -129,7 +129,8 @@ SIMPLE_JWT = {
 }
 
 # ── CORS — allow React dev server ─────────────────────────────────────
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-]
+CORS_ALLOW_ALL_ORIGINS = True
+
+# ── Staff self-registration code ──────────────────────────────────────
+# Change this to any secret string before deploying to production.
+STAFF_REGISTRATION_CODE = 'staff@petpals2024'

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import authenticate
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -21,9 +22,25 @@ def get_tokens(user):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
+    staff_code = request.data.get('staff_code', '').strip()
+
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
+
+        # Grant staff access if a valid staff code was supplied
+        if staff_code:
+            if staff_code == settings.STAFF_REGISTRATION_CODE:
+                user.is_staff = True
+                user.save(update_fields=['is_staff'])
+            else:
+                # Wrong code — delete the just-created user and reject
+                user.delete()
+                return Response(
+                    {'staff_code': 'Invalid staff registration code.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         return Response({
             'message': 'Account created successfully.',
             'user': UserSerializer(user).data,
