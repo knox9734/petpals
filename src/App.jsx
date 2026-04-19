@@ -25,22 +25,13 @@ const App = () => {
         </Toolbar>
       </AppBar>
 
-      <Container sx={{ mt: 4 }}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={user ? <Navigate to="/login" /> : <Login />} />
-          <Route path="/register" element={user ? <Navigate to="/login" /> : <Register />} />
-          <Route path="/dashboard" element={user ? <Navigate to="/login" /> : <Dashboard />} />
-          {/* <Route
-            path="/book"
-            element={user ? <BookAppointment /> : <Navigate to="/login" />}
-          /> */}
-          <Route
-            path="/book"
-            element={<BookAppointment />}  // removed auth check
-          />
-        </Routes>
-      </Container>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={user ? <Navigate to="/login" /> : <Container sx={{ mt: 4 }}><Login /></Container>} />
+        <Route path="/register" element={user ? <Navigate to="/login" /> : <Container sx={{ mt: 4 }}><Register /></Container>} />
+        <Route path="/dashboard" element={user ? <Navigate to="/login" /> : <Container sx={{ mt: 4 }}><Dashboard /></Container>} />
+        <Route path="/book" element={<Container sx={{ mt: 4 }}><BookAppointment /></Container>} />
+      </Routes>
     </>
   );
 };
