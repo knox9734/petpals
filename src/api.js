@@ -46,4 +46,18 @@ export const staffAPI = {
     invoices:          ()         => request('/staff/invoices/',            { token: token() }),
     createInvoice:     (body)     => request('/staff/invoices/create/',     { method: 'POST', body, token: token() }),
     updateInvoice:     (id, body) => request(`/staff/invoices/${id}/`,      { method: 'PUT', body, token: token() }),
+    // doctors
+    doctors:           ()         => request('/staff/doctors/',             { token: token() }),
+    createDoctor:      (body)     => request('/staff/doctors/create/',      { method: 'POST', body, token: token() }),
+    updateDoctor:      (id, body) => request(`/staff/doctors/${id}/`,       { method: 'PUT', body, token: token() }),
+    deleteDoctor:      (id)       => request(`/staff/doctors/${id}/`,       { method: 'DELETE', token: token() }),
+    // earnings
+    earnings:          ()         => request('/staff/earnings/',            { token: token() }),
+    createEarning:     (body)     => request('/staff/earnings/',            { method: 'POST', body, token: token() }),
+    updateEarning:     (id, body) => request(`/staff/earnings/${id}/`,      { method: 'PUT', body, token: token() }),
+    deleteEarning:     (id)       => request(`/staff/earnings/${id}/`,      { method: 'DELETE', token: token() }),
+};
+
+export const doctorAPI = {
+    dashboard: () => request('/doctor/dashboard/', { token: token() }),
 };

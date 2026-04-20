@@ -27,8 +27,14 @@ const Login = () => {
         setSubmitting(true);
         try {
             const loggedUser = await login({ email, password });
-            // Redirect staff to the staff panel, regular users to dashboard
-            navigate(loggedUser?.is_staff ? "/staff" : "/dashboard");
+            // Redirect staff → /staff, doctors → /doctor, patients → /dashboard
+            if (loggedUser?.is_staff || loggedUser?.is_superuser) {
+                navigate("/staff");
+            } else if (loggedUser?.is_doctor) {
+                navigate("/doctor");
+            } else {
+                navigate("/dashboard");
+            }
         } catch (err) {
             const msg =
                 err?.error ||

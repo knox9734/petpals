@@ -8,14 +8,16 @@ import BookAppointment from "./Pages/BookAppointment";
 import Dashboard from "./Pages/Dashboard";
 import StaffPanel from "./Pages/StaffPanel";
 import StaffRegister from "./Pages/StaffRegister";
+import DoctorDashboard from "./Pages/DoctorDashboard";
 import { useAuth } from "./Context/AuthContext";
 
 const App = () => {
   const { user, logout } = useAuth();
-  const isStaff = user?.is_staff || user?.is_superuser;
+  const isStaff  = user?.is_staff || user?.is_superuser;
+  const isDoctor = user?.is_doctor;
 
   // Where to land after login
-  const homeRoute = isStaff ? "/staff" : "/dashboard";
+  const homeRoute = isStaff ? "/staff" : isDoctor ? "/doctor" : "/dashboard";
 
   return (
     <>
@@ -25,8 +27,15 @@ const App = () => {
           <Button color="inherit" component={Link} to="/">Home</Button>
           {!user && <Button color="inherit" component={Link} to="/login">Login</Button>}
           {!user && <Button color="inherit" component={Link} to="/register">Register</Button>}
-          {user && !isStaff && <Button color="inherit" component={Link} to="/book">Book Appointment</Button>}
-          {user && !isStaff && <Button color="inherit" component={Link} to="/dashboard">Dashboard</Button>}
+          {user && !isStaff && !isDoctor && <Button color="inherit" component={Link} to="/book">Book Appointment</Button>}
+          {user && !isStaff && !isDoctor && <Button color="inherit" component={Link} to="/dashboard">Dashboard</Button>}
+          {isDoctor && (
+            <Button color="inherit" component={Link} to="/doctor">
+              My Dashboard
+              <Chip label="Doctor" size="small"
+                sx={{ ml: 0.8, height: 18, fontSize: "0.65rem", fontWeight: 700, backgroundColor: "#0097a7", color: "white", pointerEvents: "none" }} />
+            </Button>
+          )}
           {isStaff && (
             <Button color="inherit" component={Link} to="/staff">
               Staff Panel
@@ -43,9 +52,10 @@ const App = () => {
         <Route path="/login"          element={user ? <Navigate to={homeRoute} /> : <Container sx={{ mt: 4 }}><Login /></Container>} />
         <Route path="/register"       element={user ? <Navigate to={homeRoute} /> : <Container sx={{ mt: 4 }}><Register /></Container>} />
         <Route path="/staff/register" element={user ? <Navigate to={homeRoute} /> : <Container sx={{ mt: 4 }}><StaffRegister /></Container>} />
-        <Route path="/dashboard"      element={!user ? <Navigate to="/login" /> : isStaff ? <Navigate to="/staff" /> : <Container sx={{ mt: 4 }}><Dashboard /></Container>} />
-        <Route path="/book"           element={!user ? <Navigate to="/login" /> : isStaff ? <Navigate to="/staff" /> : <Container sx={{ mt: 4 }}><BookAppointment /></Container>} />
-        <Route path="/staff"          element={!user ? <Navigate to="/login" /> : !isStaff ? <Navigate to="/dashboard" /> : <StaffPanel />} />
+        <Route path="/dashboard"      element={!user ? <Navigate to="/login" /> : isStaff ? <Navigate to="/staff" /> : isDoctor ? <Navigate to="/doctor" /> : <Container sx={{ mt: 4 }}><Dashboard /></Container>} />
+        <Route path="/book"           element={!user ? <Navigate to="/login" /> : isStaff ? <Navigate to="/staff" /> : isDoctor ? <Navigate to="/doctor" /> : <Container sx={{ mt: 4 }}><BookAppointment /></Container>} />
+        <Route path="/staff"          element={!user ? <Navigate to="/login" /> : !isStaff ? <Navigate to={homeRoute} /> : <StaffPanel />} />
+        <Route path="/doctor"         element={!user ? <Navigate to="/login" /> : !isDoctor ? <Navigate to={homeRoute} /> : <DoctorDashboard />} />
       </Routes>
     </>
   );
