@@ -129,7 +129,14 @@ const Dashboard = () => {
 
     const billingRows = appointments
         .filter(a => a.status === "Completed")
-        .map((a, i) => ({ id: a.id, date: a.date, service: a.service, invoiceNo: `INV-${String(a.id).padStart(3, "0")}`, amount: 50, status: "Paid" }));
+        .map((a) => ({
+            id:        a.id,
+            date:      a.date,
+            service:   a.service,
+            invoiceNo: a.invoice ? `INV-${String(a.invoice.id).padStart(3, "0")}` : `INV-${String(a.id).padStart(3, "0")}`,
+            amount:    a.invoice ? parseFloat(a.invoice.amount).toFixed(2) : null,
+            status:    a.invoice ? a.invoice.status : "Pending",
+        }));
 
     if (loading) {
         return (
@@ -174,7 +181,7 @@ const Dashboard = () => {
                     <Box sx={{ display: "flex", gap: 2, mt: 4, flexWrap: "wrap" }}>
                         <StatCard icon={<CalendarTodayOutlinedIcon sx={{ color: "white", fontSize: 22 }} />} label="Total Appointments" value={appointments.length} gradient="linear-gradient(135deg, #1565c0, #0097a7)" />
                         <StatCard icon={<PetsIcon sx={{ color: "white", fontSize: 22 }} />} label="Registered Pets" value={pets.length} gradient="linear-gradient(135deg, #4527a0, #7b1fa2)" />
-                        <StatCard icon={<ReceiptOutlinedIcon sx={{ color: "white", fontSize: 22 }} />} label="Total Spent" value={`$${totalSpent}`} gradient="linear-gradient(135deg, #1b5e20, #0097a7)" />
+                        <StatCard icon={<ReceiptOutlinedIcon sx={{ color: "white", fontSize: 22 }} />} label="Total Spent" value={`$${parseFloat(totalSpent).toFixed(2)}`} gradient="linear-gradient(135deg, #1b5e20, #0097a7)" />
                         <StatCard icon={<MedicalServicesOutlinedIcon sx={{ color: "white", fontSize: 22 }} />} label="Next Appointment"
                             value={upcomingAppt ? upcomingAppt.date : "—"}
                             sub={upcomingAppt ? `${upcomingAppt.time} · ${upcomingAppt.pet_name}` : "None scheduled"}
@@ -381,7 +388,9 @@ const Dashboard = () => {
                                             <TableCell sx={{ fontSize: "0.82rem", color: "#0d1b2a", py: 1.8 }}>{bill.date}</TableCell>
                                             <TableCell sx={{ fontSize: "0.82rem", color: "#444", fontWeight: 600 }}>{bill.service}</TableCell>
                                             <TableCell sx={{ fontSize: "0.78rem", color: "text.secondary" }}>{bill.invoiceNo}</TableCell>
-                                            <TableCell sx={{ fontSize: "0.82rem", fontWeight: 800, color: "#0d1b2a" }}>${bill.amount}</TableCell>
+                                            <TableCell sx={{ fontSize: "0.82rem", fontWeight: 800, color: "#0d1b2a" }}>
+                                                {bill.amount != null ? `$${bill.amount}` : <Typography component="span" sx={{ fontSize: "0.78rem", color: "text.secondary", fontWeight: 500 }}>—</Typography>}
+                                            </TableCell>
                                             <TableCell>{statusChip(bill.status)}</TableCell>
                                         </TableRow>
                                     ))}
@@ -390,7 +399,7 @@ const Dashboard = () => {
                         </TableContainer>
                         <Box sx={{ mt: 2, pt: 2, borderTop: "1px dashed #e0e7ef", display: "flex", justifyContent: "space-between" }}>
                             <Typography sx={{ fontWeight: 600, color: "text.secondary", fontSize: "0.85rem" }}>Total paid</Typography>
-                            <Typography sx={{ fontWeight: 800, color: "#0d1b2a" }}>${totalSpent}</Typography>
+                            <Typography sx={{ fontWeight: 800, color: "#0d1b2a" }}>${parseFloat(totalSpent).toFixed(2)}</Typography>
                         </Box>
                     </Card>
                 )}
