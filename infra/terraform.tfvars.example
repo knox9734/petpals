@@ -1,0 +1,17 @@
+project_name       = "myapp"
+aws_region         = "ap-south-1"
+domain_name        = "example.com"
+frontend_subdomain = "www"
+backend_subdomain  = "api"
+
+# Strongly recommended: replace with your public IP, for example "203.0.113.10/32".
+ssh_allowed_cidr = "0.0.0.0/0"
+
+# Option 1: use an existing EC2 key pair.
+# key_name = "my-existing-key"
+
+# Option 2: create an EC2 key pair from your public key.
+# ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA..."
+
+ec2_instance_type = "t3.micro"
+ec2_volume_size   = 20
