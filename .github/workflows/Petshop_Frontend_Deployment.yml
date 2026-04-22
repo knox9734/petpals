@@ -24,9 +24,11 @@ jobs:
           node-version: '21'
 
       - name: Install dependencies
+        working-directory: ./frontend
         run: npm install --legacy-peer-deps
 
       - name: Build the React App
+        working-directory: ./frontend
         run: CI=false npm run build
 
       - name: Deploy to S3
@@ -38,4 +40,4 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
-          SOURCE_DIR: dist
+          SOURCE_DIR: frontend/build
