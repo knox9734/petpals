@@ -1,4 +1,4 @@
-const BASE_URL = 'http://32.193.230.165:8000/api';
+const BASE_URL = 'https://api.bawpets.online/api';
 
 async function request(endpoint, { method = 'GET', body, token } = {}) {
     const headers = { 'Content-Type': 'application/json' };
